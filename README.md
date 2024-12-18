@@ -7,6 +7,8 @@ e.g.
 chmod +x .devcontainer/scripts/install.sh
 ```
 
+There is also an optional `setup.sh` script which can be used to install npm and typscript globally. This is optional and can be run if you want to install these tools globally.
+
 ## Overview
 This project provides a Docker image for a customizable development environment. It is based on the `buildpack-deps` image and includes a variety of essential tools for development.
 
