@@ -1,0 +1,12 @@
+version: "3.7"
+
+services:
+  ben-devcontainer:
+    build:
+      context: ./docker/
+    working_dir: /workspace
+    volumes:
+      - ..:/workspace
+    environment:
+      - LANG=en_US.UTF-8  # Set the locale
+    user: "1000:1000"  # Run as the non-root user
