@@ -28,5 +28,6 @@
         "ms-vscode-remote.remote-ssh"
       ]
     }
-  }
+  },
+  "postCreateCommand": "/workspace/.devcontainer/scripts/install.sh"
 }
