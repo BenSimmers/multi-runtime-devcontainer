@@ -73,9 +73,7 @@ RUN groupadd --gid ${group_id} ${usr} && \
   mkdir -p /${workspace_env_name} && \
   chown -R ${user_id}:${group_id} /home/${usr} /${workspace_env_name} || { echo "Failed to create user or workspace"; exit 1; }
 
-
 USER ${usr}
 WORKDIR /${workspace_env_name}
-
 
 RUN mkdir -p ~/bin ~/scripts

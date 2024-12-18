@@ -7,7 +7,6 @@ e.g.
 chmod +x .devcontainer/scripts/install.sh
 ```
 
-
 ## Overview
 This project provides a Docker image for a customizable development environment. It is based on the `buildpack-deps` image and includes a variety of essential tools for development.
 
