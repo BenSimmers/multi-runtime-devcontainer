@@ -91,11 +91,66 @@ show_menu() {
   echo "2. Install Deno"
   echo "3. Install Bun"
   echo "4. Install All"
-  echo "5. Exit"
-  read -p "Enter your choice (1-5): " choice
+  echo "5. Install TypeScript"
+  echo "6. Exit"
+  read -p "Enter your choice (1-6): " choice
+}
+# Install TypeScript
+install_typescript() {
+  if command -v tsc &>/dev/null; then
+    warning "TypeScript is already installed. Skipping installation."
+    return
+  fi
+
+  warning "Installing TypeScript..."
+  npm install -g typescript
+
+  if command -v tsc &>/dev/null; then
+    success "TypeScript $(tsc --version) installed successfully!"
+  else
+    error "TypeScript installation failed."
+  fi
 }
 
-# Main script execution
+# Function to select a package manager
+select_package_manager() {
+  echo -e "${YELLOW}Select a package manager to install:${NC}"
+  echo "1. npm (default with Node.js)"
+  echo "2. yarn"
+  echo "3. pnpm"
+  echo "4. Skip"
+  read -p "Enter your choice (1-4): " pm_choice
+
+  case $pm_choice in
+  1)
+    success "npm is already installed with Node.js."
+    ;;
+  2)
+    warning "Installing Yarn..."
+    npm install -g yarn
+    if command -v yarn &>/dev/null; then
+      success "Yarn $(yarn --version) installed successfully!"
+    else
+      error "Yarn installation failed."
+    fi
+    ;;
+  3)
+    warning "Installing pnpm..."
+    npm install -g pnpm
+    if command -v pnpm &>/dev/null; then
+      success "pnpm $(pnpm --version) installed successfully!"
+    else
+      error "pnpm installation failed."
+    fi
+    ;;
+  4)
+    warning "Skipping package manager installation."
+    ;;
+  *)
+    warning "Invalid choice. Skipping package manager installation."
+    ;;
+  esac
+}
 while true; do
   show_menu
 
@@ -115,6 +170,9 @@ while true; do
     install_bun
     ;;
   5)
+    install_typescript
+    ;;
+  6)
     success "Exiting setup. All done!"
     break
     ;;
@@ -129,7 +187,6 @@ while true; do
     break
   fi
 done
-
 # Add exports to bashrc (if not already present)
 warning "Updating environment variables in ~/.bashrc..."
 {
@@ -143,3 +200,5 @@ warning "Updating environment variables in ~/.bashrc..."
 # Reload bashrc
 source ~/.bashrc
 success "Setup completed! PATH and runtime tools are ready."
+
+select_package_manager
