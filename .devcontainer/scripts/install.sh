@@ -1,204 +1,205 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-# Colors for output
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-RED='\033[0;31m'
-NC='\033[0m' # No Color
+# ----------
+# Settings
+# ----------
+NVM_VERSION="${NVM_VERSION:-v0.39.7}" # set via env to override
+: "${CI:=false}"
 
-# URLs for installers
-NVM_INSTALL_URL="https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.5/install.sh"
-DENO_INSTALL_URL="https://deno.land/install.sh"
-BUN_INSTALL_URL="https://bun.sh/install"
+# ----------
+# Helpers
+# ----------
+have() { command -v "$1" >/dev/null 2>&1; }
 
-# Trap for handling errors
-trap 'echo -e "${RED}[ERROR] Something went wrong. Exiting.${NC}" && exit 1' ERR
+detect_profile() {
+  # Prefer explicit PROFILE if user set it
+  if [[ -n "${PROFILE-}" ]]; then echo "$PROFILE"; return; fi
+  if [[ -n "${ZSH_VERSION-}" ]] || [[ "${SHELL:-}" == *"/zsh" ]]; then
+    echo "$HOME/.zshrc"
+  elif [[ -f "$HOME/.bashrc" ]]; then
+    echo "$HOME/.bashrc"
+  elif [[ -f "$HOME/.bash_profile" ]]; then
+    echo "$HOME/.bash_profile"
+  else
+    echo "$HOME/.profile"
+  fi
+}
 
-# Helper functions for output
-success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
-warning() { echo -e "${YELLOW}[INFO]${NC} $1"; }
-error() { echo -e "${RED}[ERROR]${NC} $1"; exit 1; }
+append_once() {
+  # append a block to profile if not already present
+  local profile="$1" key="$2" block="$3"
+  mkdir -p "$(dirname "$profile")"
+  touch "$profile"
+  if ! grep -q "$key" "$profile"; then
+    {
+      echo ""
+      echo "# BEGIN $key"
+      echo "$block"
+      echo "# END $key"
+    } >> "$profile"
+  fi
+}
 
-# Install Node.js using NVM
+ensure_path_now() {
+  # export var=... and prepend to PATH for current shell
+  # shellcheck disable=SC2163
+  export "$1"
+  export PATH="$2:$PATH"
+}
+
+msg()  { printf "\033[1;34m==>\033[0m %s\n" "$*"; }
+ok()   { printf "\033[1;32m✓\033[0m %s\n" "$*"; }
+warn() { printf "\033[1;33m!\033[0m %s\n" "$*"; }
+die()  { printf "\033[1;31m✗ %s\033[0m\n" "$*" >&2; exit 1; }
+
+trap 'die "Error on line $LINENO"' ERR
+
+PROFILE_FILE="$(detect_profile)"
+
+# ----------
+# Installers
+# ----------
 install_node() {
-  warning "Installing Node.js with NVM..."
+  if have node; then ok "Node.js already installed ($(node -v))"; return 0; fi
+
+  msg "Installing Node.js (via nvm $NVM_VERSION)…"
+  curl -fsSL "https://raw.githubusercontent.com/nvm-sh/nvm/${NVM_VERSION}/install.sh" | bash
+
   export NVM_DIR="$HOME/.nvm"
-
-  if [ ! -d "$NVM_DIR" ]; then
-    curl -o- "$NVM_INSTALL_URL" | bash
-    . "$NVM_DIR/nvm.sh"
-    . "$NVM_DIR/bash_completion"
-  else
-    warning "NVM is already installed. Skipping reinstallation."
-    . "$NVM_DIR/nvm.sh"
-  fi
-
-  # Install and configure Node.js
+  # shellcheck disable=SC1091
+  [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
   nvm install --lts
-  nvm use --lts
-  nvm alias default lts/*
+  ok "Node.js $(node -v)"
 
-  if command -v node &>/dev/null; then
-    success "Node.js $(node -v) installed successfully!"
+  # Enable Corepack and activate latest Yarn/PNPM shims
+  corepack enable || true
+  ok "Corepack enabled"
+
+  # Persist NVM + Corepack for future shells
+  append_once "$PROFILE_FILE" "NVM_SETUP" \
+'export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+command -v corepack >/dev/null 2>&1 && corepack enable >/dev/null 2>&1 || true'
+}
+
+install_pnpm() {
+  if have pnpm; then ok "pnpm already installed ($(pnpm -v))"; return 0; fi
+  if ! have corepack; then warn "Corepack not found; pnpm will be installed via npm -g"; fi
+
+  if have corepack; then
+    msg "Activating pnpm via Corepack…"
+    corepack prepare pnpm@latest --activate
   else
-    error "Node.js installation failed."
-  fi
-}
-
-# Install Deno
-install_deno() {
-  if command -v deno &>/dev/null; then
-    warning "Deno is already installed. Skipping installation."
-    return
-  fi
-
-  warning "Installing Deno..."
-  curl -fsSL "$DENO_INSTALL_URL" | sh
-
-  export DENO_INSTALL="$HOME/.deno"
-  export PATH="$DENO_INSTALL/bin:$PATH"
-
-  if command -v deno &>/dev/null; then
-    success "Deno $(deno --version | head -n 1) installed successfully!"
-  else
-    error "Deno installation failed."
-  fi
-}
-
-# Install Bun
-install_bun() {
-  if command -v bun &>/dev/null; then
-    warning "Bun is already installed. Skipping installation."
-    return
-  fi
-
-  warning "Installing Bun..."
-  curl -fsSL "$BUN_INSTALL_URL" | bash
-
-  export PATH="$HOME/.bun/bin:$PATH"
-
-  if command -v bun &>/dev/null; then
-    success "Bun $(bun --version) installed successfully!"
-  else
-    error "Bun installation failed."
-  fi
-}
-
-# Function to display the menu
-show_menu() {
-  echo -e "${YELLOW}Select the tools you want to install:${NC}"
-  echo "1. Install Node.js"
-  echo "2. Install Deno"
-  echo "3. Install Bun"
-  echo "4. Install All"
-  echo "5. Install TypeScript"
-  echo "6. Exit"
-  read -p "Enter your choice (1-6): " choice
-}
-# Install TypeScript
-install_typescript() {
-  if command -v tsc &>/dev/null; then
-    warning "TypeScript is already installed. Skipping installation."
-    return
-  fi
-
-  warning "Installing TypeScript..."
-  npm install -g typescript
-
-  if command -v tsc &>/dev/null; then
-    success "TypeScript $(tsc --version) installed successfully!"
-  else
-    error "TypeScript installation failed."
-  fi
-}
-
-# Function to select a package manager
-select_package_manager() {
-  echo -e "${YELLOW}Select a package manager to install:${NC}"
-  echo "1. npm (default with Node.js)"
-  echo "2. yarn"
-  echo "3. pnpm"
-  echo "4. Skip"
-  read -p "Enter your choice (1-4): " pm_choice
-
-  case $pm_choice in
-  1)
-    success "npm is already installed with Node.js."
-    ;;
-  2)
-    warning "Installing Yarn..."
-    npm install -g yarn
-    if command -v yarn &>/dev/null; then
-      success "Yarn $(yarn --version) installed successfully!"
-    else
-      error "Yarn installation failed."
-    fi
-    ;;
-  3)
-    warning "Installing pnpm..."
+    msg "Installing pnpm globally via npm…"
     npm install -g pnpm
-    if command -v pnpm &>/dev/null; then
-      success "pnpm $(pnpm --version) installed successfully!"
-    else
-      error "pnpm installation failed."
-    fi
-    ;;
-  4)
-    warning "Skipping package manager installation."
-    ;;
-  *)
-    warning "Invalid choice. Skipping package manager installation."
-    ;;
-  esac
-}
-while true; do
-  show_menu
-
-  case $choice in
-  1)
-    install_node
-    ;;
-  2)
-    install_deno
-    ;;
-  3)
-    install_bun
-    ;;
-  4)
-    install_node
-    install_deno
-    install_bun
-    ;;
-  5)
-    install_typescript
-    ;;
-  6)
-    success "Exiting setup. All done!"
-    break
-    ;;
-  *)
-    warning "Invalid choice. Please select a valid option."
-    ;;
-  esac
-
-  # Confirm and continue
-  read -p "Do you want to perform another action? (y/n): " continue_choice
-  if [[ "$continue_choice" != "y" ]]; then
-    break
   fi
+  ok "pnpm $(pnpm -v)"
+}
+
+install_yarn() {
+  if have yarn; then ok "yarn already installed ($(yarn -v))"; return 0; fi
+  if have corepack; then
+    msg "Activating Yarn via Corepack…"
+    corepack prepare yarn@stable --activate
+  else
+    msg "Installing yarn globally via npm…"
+    npm install -g yarn
+  fi
+  ok "yarn $(yarn -v)"
+}
+
+install_deno() {
+  if have deno; then ok "Deno already installed ($(deno --version | head -n1))"; return 0; fi
+
+  msg "Installing Deno…"
+  curl -fsSL https://deno.land/x/install/install.sh | sh
+
+  ensure_path_now "DENO_INSTALL=$HOME/.deno" "$HOME/.deno/bin"
+  append_once "$PROFILE_FILE" "DENO_PATH" \
+'export DENO_INSTALL="$HOME/.deno"
+export PATH="$DENO_INSTALL/bin:$PATH"'
+  ok "Deno $(deno --version | head -n1)"
+}
+
+install_bun() {
+  if have bun; then ok "Bun already installed ($(bun -v))"; return 0; fi
+
+  msg "Installing Bun…"
+  curl -fsSL https://bun.sh/install | bash
+
+  ensure_path_now "BUN_INSTALL=$HOME/.bun" "$HOME/.bun/bin"
+  append_once "$PROFILE_FILE" "BUN_PATH" \
+'export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"'
+  ok "Bun $(bun -v)"
+}
+
+# ----------
+# CLI
+# ----------
+usage() {
+  cat <<EOF
+Usage: $(basename "$0") [options]
+
+Options:
+  --node          Install Node.js (nvm + LTS)
+  --deno          Install Deno
+  --bun           Install Bun
+  --pnpm          Install pnpm (via Corepack if available)
+  --yarn          Install Yarn (via Corepack if available)
+  --all           Install everything (Node, Deno, Bun, pnpm, Yarn)
+  -y, --yes       Non-interactive; assume --all
+  -h, --help      Show this help
+
+Environment:
+  NVM_VERSION     Tag for nvm installer (default: $NVM_VERSION)
+  PROFILE         Force profile file (default: auto-detected: $PROFILE_FILE)
+EOF
+}
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then usage; exit 0; fi
+
+if [[ "${1:-}" == "-y" || "${1:-}" == "--yes" ]]; then
+  set -- --all
+fi
+
+if [[ "$#" -eq 0 ]]; then
+  echo "Choose your setup:"
+  echo "  1) Node.js only"
+  echo "  2) Deno only"
+  echo "  3) Bun only"
+  echo "  4) Everything: Node + Deno + Bun + pnpm + yarn"
+  read -rp "Enter choice (1–4): " choice
+  case "$choice" in
+    1) set -- --node ;;
+    2) set -- --deno ;;
+    3) set -- --bun ;;
+    4) set -- --all ;;
+    *) die "Invalid choice." ;;
+  esac
+fi
+
+DO_NODE=false DO_DENO=false DO_BUN=false DO_PNPM=false DO_YARN=false
+for arg in "$@"; do
+  case "$arg" in
+    --node) DO_NODE=true ;;
+    --deno) DO_DENO=true ;;
+    --bun)  DO_BUN=true ;;
+    --pnpm) DO_PNPM=true ;;
+    --yarn) DO_YARN=true ;;
+    --all)  DO_NODE=true; DO_DENO=true; DO_BUN=true; DO_PNPM=true; DO_YARN=true ;;
+    *) die "Unknown option: $arg (see --help)";;
+  esac
 done
-# Add exports to bashrc (if not already present)
-warning "Updating environment variables in ~/.bashrc..."
-{
-  echo 'export NVM_DIR="$HOME/.nvm"'
-  echo '[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"'
-  echo '[ -s "$NVM_DIR/bash_completion" ] && . "$NVM_DIR/bash_completion"'
-  echo 'export DENO_INSTALL="$HOME/.deno"'
-  echo 'export PATH="$DENO_INSTALL/bin:$HOME/.bun/bin:$PATH"'
-} >>~/.bashrc
 
-# Reload bashrc
-source ~/.bashrc
-success "Setup completed! PATH and runtime tools are ready."
+$DO_NODE && install_node
+$DO_DENO && install_deno
+$DO_BUN  && install_bun
+$DO_PNPM && install_pnpm
+$DO_YARN && install_yarn
 
-select_package_manager
+echo
+ok "Done."
+echo "Profile: $PROFILE_FILE"
+echo "Open a new terminal, or run:  source \"$PROFILE_FILE\""
