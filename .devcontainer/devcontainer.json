@@ -1,13 +1,16 @@
 {
   "name": "ben-devcontainer",
-  "dockerComposeFile": "docker-compose.yaml",
-  "workspaceFolder": "/workspace",
+  "image": "mcr.microsoft.com/devcontainers/base:noble",
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "lts"
+    },
+    "ghcr.io/devcontainers-community/features/deno:1": {},
+    "ghcr.io/devcontainers-extra/features/bun:1": {}
+  },
   "remoteEnv": {
     "LOCAL_WORKSPACE_FOLDER": "${localWorkspaceFolder}"
   },
-  "overrideCommand": true,
-  "service": "ben-devcontainer",
-  "remoteUser": "bensimmersdev",
   "customizations": {
     "vscode": {
       "extensions": [
@@ -20,14 +23,13 @@
         "ms-azuretools.vscode-docker",
         "eamodio.gitlens",
         "ritwickdey.LiveServer",
-        "msjsdiag.debugger-for-chrome",
         "xabikos.JavaScriptSnippets",
         "abusaidm.html-snippets",
         "yzhang.markdown-all-in-one",
         "christian-kohler.path-intellisense",
-        "ms-vscode-remote.remote-ssh"
+        "denoland.vscode-deno",
+        "oven.bun-vscode"
       ]
     }
-  },
-  "postCreateCommand": "/workspace/.devcontainer/scripts/install.sh"
+  }
 }
