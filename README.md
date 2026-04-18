@@ -1,33 +1,33 @@
-# Multi Runtime Development Environment - Bun, Node and Deno
+# Multi Runtime Development Environment — Bun, Node & Deno
 
-## Disclaimer
-There is an `scripts/install.sh` in this repo which can install some runtimes (bun, node, deno etc). so please keep in mind this script may need to be chmmoded to be executable.
-e.g.
-```bash
-chmod +x .devcontainer/scripts/install.sh
-```
-
-There is also an optional `setup.sh` script which can be used to install npm and typscript globally. This is optional and can be run if you want to install these tools globally.
-
-## Overview
-This project provides a Docker image for a customizable development environment. It is based on the `buildpack-deps` image and includes a variety of essential tools for development.
+A dev container providing Bun, Node.js (LTS), and Deno out of the box, with a curated set of VS Code extensions for web development.
 
 ## Prerequisites
-- [Docker](https://www.docker.com/get-started) installed on your machine.
 
-## Build Instructions
-Use Visual Studio Code's Remote - Containers extension to use the container as a development environment.
+- [Docker](https://www.docker.com/get-started)
+- [VS Code](https://code.visualstudio.com/) with the [Dev Containers](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers) extension
 
-To build the Docker image, run the following command in the directory containing the Dockerfile:
+## Getting Started
 
-```bash
-docker build -t my-dev-container .
-```
+1. Clone this repository.
+2. Open the folder in VS Code.
+3. When prompted, select **Reopen in Container** (or run the `Dev Containers: Reopen in Container` or `Dev Containers: Rebuild and Reopen Container without cache` command).
 
-## Run Instructions
-To run the Docker container, run the following command:
+The container is based on `mcr.microsoft.com/devcontainers/base:noble` and installs the following runtimes via dev container features:
 
-```bash
-docker run -v $HOME:/home/bensimmersdev my-dev-container
-```
+| Runtime | Feature |
+|---------|---------|
+| Node.js (LTS) | `ghcr.io/devcontainers/features/node` |
+| Deno | `ghcr.io/devcontainers-community/features/deno` |
+| Bun | `ghcr.io/devcontainers-extra/features/bun` |
+
+## Included VS Code Extensions
+
+- ESLint, Prettier, Stylelint
+- EditorConfig, Path IntelliSense
+- Code Spell Checker
+- Python, Docker, GitLens
+- Live Server, Markdown All in One
+- JavaScript Snippets, HTML Snippets
+- Deno, Bun
 
