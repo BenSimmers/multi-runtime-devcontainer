@@ -1,6 +1,8 @@
 {
   "name": "ben-devcontainer",
   "image": "mcr.microsoft.com/devcontainers/base:noble",
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+
   "features": {
     "ghcr.io/devcontainers/features/node:1": {
       "version": "lts"
